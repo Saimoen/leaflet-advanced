@@ -1,0 +1,202 @@
+$.ajax({
+  type: "GET",
+  url: "https://data.gouv.nc/api/explore/v2.1/catalog/datasets/bornes-de-recharge-pour-vehicules-electriques/records?limit=20",
+  success: function (data) {
+    var map = L.map("map").setView([-21.35964121293933, 165.49842555234315], 8);
+    var stationNames = []; // Liste des noms de stations
+    var userPosition = null;
+
+    var routeButton = L.Control.extend({
+      options: {
+        position: "topright",
+      },
+      onAdd: function (map) {
+        var container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+        container.innerHTML =
+          '<button class="btn btn-primary">Itinéraire</button>';
+        container.onclick = function () {
+          navigator.geolocation.getCurrentPosition(function (position) {
+            userPosition = [
+              position.coords.latitude,
+              position.coords.longitude,
+            ];
+
+            var geoJsonData = {
+              type: "FeatureCollection",
+              features: [],
+            };
+
+            data.results.forEach((element) => {
+              var feature = {
+                type: "Feature",
+                geometry: {
+                  type: "Point",
+                  coordinates: [
+                    element.geo_point_2d.lon,
+                    element.geo_point_2d.lat,
+                  ],
+                },
+                properties: {
+                  nom_station: element.nom_station,
+                  nom_amenageur: element.nom_amenageur,
+                  nom_commercial: element.nom_commercial,
+                  nom_operateur: element.nom_operateur,
+                },
+              };
+              geoJsonData.features.push(feature);
+            });
+
+            var geoJsonLayer = L.geoJson(geoJsonData);
+
+            var nearestStation = leafletKnn(geoJsonLayer).nearest(
+              L.latLng(userPosition[0], userPosition[1]),
+              1
+            )[0].layer.feature;
+
+            L.Routing.control({
+              waypoints: [
+                L.latLng(userPosition[0], userPosition[1]),
+                L.latLng(
+                  nearestStation.geometry.coordinates[1],
+                  nearestStation.geometry.coordinates[0]
+                ),
+              ],
+              routeWhileDragging: true,
+            }).addTo(map);
+          });
+        };
+
+        return container;
+      },
+    });
+    map.addControl(new routeButton());
+
+    var searchInput = document.createElement("input");
+    var buttonSearch = document.createElement("button");
+    searchInput.type = "text";
+    searchInput.placeholder = "Rechercher par ville";
+    buttonSearch.textContent = "Rechercher";
+    buttonSearch.addEventListener("click", function () {
+      var searchValue = searchInput.value.toLowerCase();
+      var filteredStations = stationNames.filter(function (station) {
+        return station.commune.toLowerCase().includes(searchValue);
+      });
+      if (!searchInput.value) {
+        var circle = L.circle(
+          [element.geo_point_2d.lat, element.geo_point_2d.lon],
+          {
+            color: "red",
+            fillColor: "#f03",
+            fillOpacity: 0.5,
+            radius: 500,
+          }
+        ).addTo(map);
+        circle.nom_amenageur = element.nom_amenageur;
+        circle.nom_commercial = element.nom_commercial;
+        circle.nom_operateur = element.nom_operateur;
+        circle.nom_station = element.nom_station;
+        circle.on("click", onMapClick);
+      }
+      console.log(filteredStations);
+      filteredStations.forEach((element) => {
+        var circle = L.circle(
+          [element.geo_point_2d.lat, element.geo_point_2d.lon],
+          {
+            color: "green",
+            fillColor: "green",
+            fillOpacity: 0.5,
+            radius: 500,
+          }
+        ).addTo(map);
+        circle.nom_amenageur = element.nom_amenageur;
+        circle.nom_commercial = element.nom_commercial;
+        circle.nom_operateur = element.nom_operateur;
+        circle.nom_station = element.nom_station;
+        circle.on("click", onMapClick);
+      });
+    });
+
+    data.results.forEach((element) => {
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution:
+          '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(map);
+
+      var circle = L.circle(
+        [element.geo_point_2d.lat, element.geo_point_2d.lon],
+        {
+          color: "red",
+          fillColor: "#f03",
+          fillOpacity: 0.5,
+          radius: 500,
+        }
+      ).addTo(map);
+      stationNames.push(element);
+
+      circle.nom_amenageur = element.nom_amenageur;
+      circle.nom_commercial = element.nom_commercial;
+      circle.nom_operateur = element.nom_operateur;
+      circle.nom_station = element.nom_station;
+      circle.on("click", onMapClick);
+
+      map.addControl(
+        new L.Control.Search({
+          sourceData: stationNames, // Utiliser la liste des noms de stations comme source de données
+          text: "Rechercher une station...", // Texte du champ de recherche
+          position: "topright", // Position de la recherche sur la carte
+          markerLocation: true, // Afficher la localisation du marqueur de recherche
+        })
+      );
+
+      searchInput.addEventListener("input", function (event) {
+        if (event.target.value === "") {
+          var circle = L.circle(
+            [element.geo_point_2d.lat, element.geo_point_2d.lon],
+            {
+              color: "red",
+              fillColor: "#f03",
+              fillOpacity: 0.5,
+              radius: 500,
+            }
+          ).addTo(map);
+          circle.nom_amenageur = element.nom_amenageur;
+          circle.nom_commercial = element.nom_commercial;
+          circle.nom_operateur = element.nom_operateur;
+          circle.nom_station = element.nom_station;
+          circle.on("click", onMapClick);
+        }
+      });
+    });
+
+    var customControl = L.control({ position: "topright" });
+    customControl.onAdd = function (map) {
+      var div = L.DomUtil.create("div", "custom-control");
+      div.appendChild(searchInput);
+      div.appendChild(buttonSearch);
+      return div;
+    };
+    customControl.addTo(map);
+
+    L.Control.geocoder().addTo(map);
+  },
+});
+
+function onMapClick(e) {
+  const panneau = document.getElementById("panneau");
+  panneau.style.display = "block";
+  panneau.innerHTML =
+    '<i class="fa fa-times" id="cross" style="float: right; cursor: pointer" aria-hidden="true"></i>';
+  panneau.innerHTML +=
+    "<h3>Nom aménageur : </h3>" + "" + e.target.nom_amenageur + "</br>";
+  panneau.innerHTML +=
+    "<h3>Nom commercial : </h3>" + "" + e.target.nom_commercial + "</br>";
+  panneau.innerHTML +=
+    "<h3>Nom opérateur : </h3>" + "" + e.target.nom_operateur + "</br>";
+  panneau.innerHTML +=
+    "<h3>Nom station : </h3>" + "" + e.target.nom_station + "</br>";
+  const cross = document.getElementById("cross");
+  cross.addEventListener("click", () => {
+    panneau.style.display = "none";
+  });
+}

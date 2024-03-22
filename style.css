@@ -1,0 +1,26 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  scroll-behavior: none;
+}
+
+#panneau {
+  display: none;
+  position: absolute; /* Position absolue pour placer le panneau sur la carte */
+  top: 150px; /* Ajustez selon vos besoins */
+  left: 10px; /* Ajustez selon vos besoins */
+  z-index: 1000; /* Assurez-vous que le panneau est au-dessus de la carte */
+  background-color: white; /* Fond du panneau */
+  padding: 10px; /* Espace intérieur du panneau */
+  border: 1px solid #ccc; /* Bordure du panneau */
+}
+#search-container {
+  position: absolute; /* Position absolue pour placer le panneau sur la carte */
+  top: 90px; /* Ajustez selon vos besoins */
+  left: 10px; /* Ajustez selon vos besoins */
+  z-index: 1000; /* Assurez-vous que le panneau est au-dessus de la carte */
+  background-color: white; /* Fond du panneau */
+  padding: 10px; /* Espace intérieur du panneau */
+  border: 1px solid #ccc; /* Bordure du panneau */
+}
