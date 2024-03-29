@@ -2,19 +2,21 @@ $.ajax({
   type: "GET",
   url: "https://data.gouv.nc/api/explore/v2.1/catalog/datasets/bornes-de-recharge-pour-vehicules-electriques/records?limit=20",
   success: function (data) {
+    console.log(data);
     var map = L.map("map").setView([-21.35964121293933, 165.49842555234315], 8);
     var stationNames = []; // Liste des noms de stations
     var userPosition = null;
 
     var routeButton = L.Control.extend({
       options: {
-        position: "topright",
+        position: "bottomright",
       },
       onAdd: function (map) {
-        var container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-        container.innerHTML =
-          '<button class="btn btn-primary">Itinéraire</button>';
-        container.onclick = function () {
+        var itineraire = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+        itineraire.innerHTML =
+          '<button class="btn">Trouver la borne la plus proche</button>';
+
+        itineraire.onclick = function () {
           navigator.geolocation.getCurrentPosition(function (position) {
             userPosition = [
               position.coords.latitude,
@@ -41,6 +43,12 @@ $.ajax({
                   nom_amenageur: element.nom_amenageur,
                   nom_commercial: element.nom_commercial,
                   nom_operateur: element.nom_operateur,
+                  adresse_station: element.adresse_station,
+                  code_commune: element.code_commune,
+                  code_postal: element.code_postal,
+                  commune: element.commune,
+                  nb_points_charge: element.nb_points_charge,
+                  observations_stations: element.observations_stations,
                 },
               };
               geoJsonData.features.push(feature);
@@ -66,15 +74,18 @@ $.ajax({
           });
         };
 
-        return container;
+        return itineraire;
       },
     });
+
     map.addControl(new routeButton());
 
     var searchInput = document.createElement("input");
     var buttonSearch = document.createElement("button");
     searchInput.type = "text";
-    searchInput.placeholder = "Rechercher par ville";
+    searchInput.placeholder = "Rechercher par commune";
+    searchInput.className += "input";
+    buttonSearch.className += "btn";
     buttonSearch.textContent = "Rechercher";
     buttonSearch.addEventListener("click", function () {
       var searchValue = searchInput.value.toLowerCase();
@@ -95,6 +106,15 @@ $.ajax({
         circle.nom_commercial = element.nom_commercial;
         circle.nom_operateur = element.nom_operateur;
         circle.nom_station = element.nom_station;
+        circle.adresse_station = element.adresse_station;
+        circle.code_commune = element.code_commune;
+        circle.code_postal = element.code_postal;
+        circle.commune = element.commune;
+        circle.nb_points_charge = element.nb_points_charge;
+        circle.observations_stations = element.observations_stations
+        ? element.observations_stations
+        : "Pas d'observations particulières";
+
         circle.on("click", onMapClick);
       }
       console.log(filteredStations);
@@ -112,6 +132,14 @@ $.ajax({
         circle.nom_commercial = element.nom_commercial;
         circle.nom_operateur = element.nom_operateur;
         circle.nom_station = element.nom_station;
+        circle.adresse_station = element.adresse_station;
+        circle.code_commune = element.code_commune;
+        circle.code_postal = element.code_postal;
+        circle.commune = element.commune;
+        circle.nb_points_charge = element.nb_points_charge;
+        circle.observations_stations = element.observations_stations
+        ? element.observations_stations
+        : "Pas d'observations particulières";
         circle.on("click", onMapClick);
       });
     });
@@ -138,16 +166,15 @@ $.ajax({
       circle.nom_commercial = element.nom_commercial;
       circle.nom_operateur = element.nom_operateur;
       circle.nom_station = element.nom_station;
+      circle.adresse_station = element.adresse_station;
+      circle.code_commune = element.code_commune;
+      circle.code_postal = element.code_postal;
+      circle.commune = element.commune;
+      circle.nb_points_charge = element.nb_points_charge;
+      circle.observations_stations = element.observations_stations
+      ? element.observations_stations
+      : "Pas d'observations particulières";
       circle.on("click", onMapClick);
-
-      map.addControl(
-        new L.Control.Search({
-          sourceData: stationNames, // Utiliser la liste des noms de stations comme source de données
-          text: "Rechercher une station...", // Texte du champ de recherche
-          position: "topright", // Position de la recherche sur la carte
-          markerLocation: true, // Afficher la localisation du marqueur de recherche
-        })
-      );
 
       searchInput.addEventListener("input", function (event) {
         if (event.target.value === "") {
@@ -164,6 +191,14 @@ $.ajax({
           circle.nom_commercial = element.nom_commercial;
           circle.nom_operateur = element.nom_operateur;
           circle.nom_station = element.nom_station;
+          circle.adresse_station = element.adresse_station;
+          circle.code_commune = element.code_commune;
+          circle.code_postal = element.code_postal;
+          circle.commune = element.commune;
+          circle.nb_points_charge = element.nb_points_charge;
+          circle.observations_stations = element.observations_stations
+            ? element.observations_stations
+            : "Pas d'observations particulières";
           circle.on("click", onMapClick);
         }
       });
@@ -171,7 +206,7 @@ $.ajax({
 
     var customControl = L.control({ position: "topright" });
     customControl.onAdd = function (map) {
-      var div = L.DomUtil.create("div", "custom-control");
+      var div = L.DomUtil.create("div", "custom-control flex");
       div.appendChild(searchInput);
       div.appendChild(buttonSearch);
       return div;
@@ -184,17 +219,33 @@ $.ajax({
 
 function onMapClick(e) {
   const panneau = document.getElementById("panneau");
-  panneau.style.display = "block";
+  panneau.style.display = "flex";
+  panneau.style.flexDirection = "column";
+  panneau.style.alignItems = "center";
   panneau.innerHTML =
-    '<i class="fa fa-times" id="cross" style="float: right; cursor: pointer" aria-hidden="true"></i>';
-  panneau.innerHTML +=
-    "<h3>Nom aménageur : </h3>" + "" + e.target.nom_amenageur + "</br>";
+    '<i class="fa fa-times" id="cross" style="cursor: pointer; position: absolute; right: 1vw;" aria-hidden="true"></i>';
+  panneau.innerHTML += "<h1>Informations concernant la borne</h1>";
+  "<h3>Nom aménageur : </h3>" + "" + e.target.nom_amenageur + "</br>";
   panneau.innerHTML +=
     "<h3>Nom commercial : </h3>" + "" + e.target.nom_commercial + "</br>";
   panneau.innerHTML +=
     "<h3>Nom opérateur : </h3>" + "" + e.target.nom_operateur + "</br>";
   panneau.innerHTML +=
     "<h3>Nom station : </h3>" + "" + e.target.nom_station + "</br>";
+  panneau.innerHTML +=
+    "<h3>Adresse de la borne : </h3>" + "" + e.target.adresse_station + "</br>";
+  panneau.innerHTML +=
+    "<h3>Code commune : </h3>" + "" + e.target.code_commune + "</br>";
+  panneau.innerHTML +=
+    "<h3>Code postal : </h3>" + "" + e.target.code_postal + "</br>";
+  panneau.innerHTML += "<h3>Commune : </h3>" + "" + e.target.commune + "</br>";
+  panneau.innerHTML +=
+    "<h3>Nombre points de charge : </h3>" +
+    "" +
+    e.target.nb_points_charge +
+    "</br>";
+  panneau.innerHTML +=
+    "<h3>Observations : </h3>" + "" + e.target.observations_stations + "</br>";
   const cross = document.getElementById("cross");
   cross.addEventListener("click", () => {
     panneau.style.display = "none";
